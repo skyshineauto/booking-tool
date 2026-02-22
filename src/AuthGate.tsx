@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./lib/supabaseClient";
+import { supabase } from "./lib/supabaseClientV2";
 
 type Props = { children: React.ReactNode };
 
@@ -48,11 +48,7 @@ export default function AuthGate({ children }: Props) {
   }
 
   if (loading) {
-    return (
-      <div style={{ padding: 24, color: "white" }}>
-        Loading…
-      </div>
-    );
+    return <div style={{ padding: 24, color: "white" }}>Loading…</div>;
   }
 
   if (!session) {

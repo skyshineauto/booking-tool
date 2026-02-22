@@ -1,28 +1,53 @@
-import { useEffect, useState } from "react";
+// src/AuthGate.tsx
+import React, { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 
 type Props = { children: React.ReactNode };
 
+type Stage = "LOADING" | "SIGN_IN" | "DONE";
+
 export default function AuthGate({ children }: Props) {
-  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<Stage>("LOADING");
+  const [session, setSession] = useState<any>(null);
+
+  // Sign-in form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [session, setSession] = useState<any>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
+  // UI state
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const normEmail = (v: string) => v.trim().toLowerCase();
+
+  const timeoutPromise = (ms: number) =>
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out. Try again.")), ms)
+    );
+
+  // ---------- session bootstrap ----------
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
+
+      if (error) {
+        setErr(error.message);
+        setStage("SIGN_IN");
+        return;
+      }
+
       setSession(data.session);
-      setLoading(false);
+
+      if (!data.session) setStage("SIGN_IN");
+      else setStage("DONE");
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      if (!mounted) return;
       setSession(s);
-      setLoading(false);
+      setStage(s ? "DONE" : "SIGN_IN");
     });
 
     return () => {
@@ -31,244 +56,297 @@ export default function AuthGate({ children }: Props) {
     };
   }, []);
 
-  async function signIn() {
+  // ---------- actions ----------
+  async function signInWithPassword() {
     setErr(null);
-    if (!email.trim() || !password) return;
+
+    const e = normEmail(email);
+    if (!e) return setErr("Enter your email.");
+    if (!password) return setErr("Enter your password.");
 
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setBusy(false);
+    try {
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: e,
+        password,
+      });
 
-    if (error) setErr(error.message);
+      const { data, error } = await Promise.race([
+        signInPromise,
+        timeoutPromise(12000),
+      ]);
+
+      if (error) {
+        // Friendly hint when signups are disabled / user not invited
+        const msg = error.message || "Sign-in failed.";
+        if (
+          msg.toLowerCase().includes("invalid login") ||
+          msg.toLowerCase().includes("invalid") ||
+          msg.toLowerCase().includes("user not found")
+        ) {
+          setErr("Invalid credentials or user not authorized.");
+        } else {
+          setErr(msg);
+        }
+        return;
+      }
+
+      setSession(data.session);
+      setStage("DONE");
+    } catch (e2: any) {
+      setErr(e2?.message ?? "Sign-in failed. Try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function signOut() {
-    await supabase.auth.signOut();
+    setErr(null);
+    setBusy(true);
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setStage("SIGN_IN");
+      setEmail("");
+      setPassword("");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  if (loading) {
-    return <div style={{ padding: 24, color: "white" }}>Loading…</div>;
-  }
+  // ---------- UI ----------
+  const bgUrl = "/bg-garage.jpg";
+  const logoUrl = "/logo.png";
 
-  if (!session) {
+  const Page = ({ children: pageChildren }: { children: React.ReactNode }) => (
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        background: `linear-gradient(to bottom, rgba(5,6,10,.88), rgba(5,6,10,.82)), url(${bgUrl}) center/cover no-repeat`,
+        display: "grid",
+        placeItems: "center",
+        padding: "clamp(18px, 4vw, 44px)",
+        color: "white",
+      }}
+    >
+      <div
+        style={{
+          width: "min(1040px, 100%)",
+          display: "grid",
+          gap: "clamp(18px, 3vw, 30px)",
+          justifyItems: "center",
+          textAlign: "center",
+        }}
+      >
+        {/* HERO */}
+        <div style={{ display: "grid", justifyItems: "center" }}>
+          <img
+            src={logoUrl}
+            alt="SkyShine Auto Detailing"
+            style={{
+              width: "clamp(140px, 18vw, 240px)",
+              height: "auto",
+              display: "block",
+              marginBottom: "clamp(10px, 1.5vw, 14px)",
+              filter:
+                "drop-shadow(0 22px 55px rgba(0,0,0,.60)) drop-shadow(0 0 18px rgba(0,190,255,.22))",
+            }}
+          />
+
+          <div
+            style={{
+              fontWeight: 900,
+              textTransform: "uppercase",
+              fontSize: "clamp(30px, 4.4vw, 60px)",
+              lineHeight: 1.05,
+              letterSpacing: "clamp(.06em, .35vw, .14em)",
+              textShadow:
+                "0 18px 60px rgba(0,0,0,.60), 0 0 22px rgba(0,190,255,.10)",
+            }}
+          >
+            SKYSHINE AUTO DETAILING
+          </div>
+
+          <div
+            style={{
+              marginTop: "clamp(8px, 1.4vw, 14px)",
+              fontWeight: 700,
+              fontSize: "clamp(14px, 1.9vw, 22px)",
+              letterSpacing: "0.06em",
+              opacity: 0.95,
+              textShadow: "0 10px 40px rgba(0,0,0,.55)",
+            }}
+          >
+            Booking Tool • Secure Access
+          </div>
+        </div>
+
+        {/* CARD */}
+        <div
+          style={{
+            width: "min(560px, 100%)",
+            borderRadius: 20,
+            border: "1px solid rgba(255,255,255,.16)",
+            background: "rgba(12,14,18,.62)",
+            backdropFilter: "blur(12px)",
+            boxShadow:
+              "0 26px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.07)",
+            padding: "clamp(16px, 2.4vw, 26px)",
+            textAlign: "left",
+          }}
+        >
+          {pageChildren}
+
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 12,
+              borderTop: "1px solid rgba(255,255,255,.10)",
+              textAlign: "center",
+              fontSize: 12,
+              letterSpacing: "0.08em",
+              opacity: 0.85,
+              textTransform: "uppercase",
+            }}
+          >
+            Terms of Use © 2026 SkyShine AutoDetailing
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const Label = ({ children: t }: { children: React.ReactNode }) => (
+    <div
+      style={{
+        fontSize: 12,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        opacity: 0.85,
+        marginBottom: 7,
+      }}
+    >
+      {t}
+    </div>
+  );
+
+  const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+      {...props}
+      style={{
+        width: "100%",
+        padding: "12px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,.14)",
+        background: "rgba(255,255,255,.04)",
+        color: "white",
+        outline: "none",
+        fontSize: 14,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
+        ...(props.style || {}),
+      }}
+    />
+  );
+
+  const Button = (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button
+      {...props}
+      style={{
+        width: "100%",
+        padding: "12px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(0,190,255,.22)",
+        background: busy ? "rgba(0,190,255,.10)" : "rgba(0,190,255,.18)",
+        color: "white",
+        fontWeight: 900,
+        cursor: busy ? "not-allowed" : "pointer",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        boxShadow:
+          "0 14px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10)",
+        ...(props.style || {}),
+      }}
+      disabled={busy || props.disabled}
+    />
+  );
+
+  // ---------- render ----------
+  if (stage === "DONE" && session) {
     return (
       <>
-        {/* Component-scoped styles for responsive layout */}
-        <style>{`
-          .auth-wrap{
-            min-height: 100vh;
-            width: 100%;
-            display: grid;
-            grid-template-rows: 1fr auto 1fr;
-            place-items: center;
-            position: relative;
-            overflow: hidden;
-            padding: clamp(16px, 3vw, 36px);
-            font-family: "Archivo", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            color: #fff;
-          }
-
-          .auth-bg{
-            position:absolute; inset:0;
-            background-image: url("/bg-garage.jpg");
-            background-size: cover;
-            background-position: center;
-            filter: saturate(1.05) contrast(1.05);
-            transform: scale(1.03);
-          }
-          .auth-vignette{
-            position:absolute; inset:0;
-            background:
-              radial-gradient(900px 540px at 50% 35%, rgba(0,190,255,.18), transparent 60%),
-              radial-gradient(1100px 700px at 50% 60%, rgba(0,0,0,.35), transparent 55%),
-              linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,.65));
-          }
-
-          .auth-brand{
-            grid-row: 1;
-            display:flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 12px;
-            text-align:center;
-            padding-top: clamp(8px, 2vh, 24px);
-            z-index: 2;
-          }
-
-          .auth-logo{
-            width: clamp(120px, 14vw, 190px);
-            height: auto;
-            filter: drop-shadow(0 18px 34px rgba(0,0,0,.8));
-          }
-
-          .auth-title{
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: clamp(1.8px, .18vw, 3px);
-            font-size: clamp(26px, 3.2vw, 62px);
-            line-height: 1.05;
-            text-shadow: 0 18px 60px rgba(0,0,0,.55);
-          }
-
-          .auth-subtitle{
-            opacity: .85;
-            font-size: clamp(12px, 1.1vw, 14px);
-            letter-spacing: .6px;
-            margin-top: -2px;
-          }
-
-          .auth-card{
-            grid-row: 2;
-            width: min(520px, 92vw);
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(8,10,14,.55);
-            backdrop-filter: blur(10px);
-            border-radius: 18px;
-            padding: 18px;
-            z-index: 2;
-            box-shadow: 0 18px 60px rgba(0,0,0,.45);
-          }
-
-          .auth-card h2{
-            margin: 0 0 6px 0;
-            font-size: 18px;
-            font-weight: 800;
-          }
-
-          .auth-card p{
-            margin: 0 0 14px 0;
-            font-size: 13px;
-            opacity: .82;
-          }
-
-          .auth-input{
-            width: 100%;
-            padding: 11px 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(255,255,255,.04);
-            color: #fff;
-            outline: none;
-            margin-bottom: 10px;
-            font-size: 14px;
-          }
-          .auth-input::placeholder{ color: rgba(255,255,255,.45); }
-
-          .auth-btn{
-            width: 100%;
-            padding: 11px 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,.14);
-            background: rgba(0,190,255,.22);
-            color: #fff;
-            font-weight: 800;
-            cursor: pointer;
-            transition: transform .08s ease, background .15s ease;
-          }
-          .auth-btn:hover{ background: rgba(0,190,255,.28); }
-          .auth-btn:active{ transform: translateY(1px); }
-          .auth-btn:disabled{ opacity: .55; cursor: not-allowed; }
-
-          .auth-error{
-            margin-top: 10px;
-            color: #ff6b6b;
-            font-size: 13px;
-          }
-
-          .auth-only{
-            margin-top: 12px;
-            opacity: .85;
-            font-size: 12px;
-            letter-spacing: 1.6px;
-            text-transform: uppercase;
-          }
-
-          .auth-spacer{
-            grid-row: 3;
-            height: 1px;
-            z-index: 2;
-          }
-
-          @media (max-width: 520px){
-            .auth-card{ padding: 16px; border-radius: 16px; }
-            .auth-brand{ padding-top: 10px; }
-          }
-        `}</style>
-
-        <div className="auth-wrap">
-          <div className="auth-bg" aria-hidden="true" />
-          <div className="auth-vignette" aria-hidden="true" />
-
-          {/* Row 1: Branding */}
-          <div className="auth-brand">
-            <img className="auth-logo" src="/logo.png" alt="SkyShine Auto Detailing" />
-            <div className="auth-title">SkyShine Auto Detailing</div>
-            <div className="auth-subtitle">Booking Tool • Secure Access</div>
-          </div>
-
-          {/* Row 2: Card */}
-          <div className="auth-card">
-            <h2>Sign in</h2>
-            <p>Authorized users only. Sign in with email + password.</p>
-
-            <input
-              className="auth-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              autoComplete="email"
-              inputMode="email"
-            />
-
-            <input
-              className="auth-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              type="password"
-              autoComplete="current-password"
-            />
-
-            <button className="auth-btn" onClick={signIn} disabled={busy || !email.trim() || !password}>
-              {busy ? "Signing in…" : "Sign in"}
-            </button>
-
-            {err && <div className="auth-error">{err}</div>}
-
-            <div className="auth-only">Authorized Users Only</div>
-          </div>
-
-          {/* Row 3: spacer (keeps the card visually centered with breathing room) */}
-          <div className="auth-spacer" />
+        <div style={{ position: "fixed", right: 12, top: 12, zIndex: 9999 }}>
+          <button
+            onClick={signOut}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,.14)",
+              background: "rgba(0,0,0,.35)",
+              color: "white",
+              cursor: "pointer",
+              fontSize: 12,
+              backdropFilter: "blur(8px)",
+            }}
+            disabled={busy}
+          >
+            Sign out
+          </button>
         </div>
+        {children}
       </>
     );
   }
 
-  // Authenticated view
+  if (stage === "LOADING") {
+    return (
+      <Page>
+        <div style={{ padding: 6, opacity: 0.9 }}>Loading…</div>
+      </Page>
+    );
+  }
+
+  // SIGN_IN
   return (
-    <>
-      <div style={{ position: "fixed", right: 12, top: 12, zIndex: 9999 }}>
-        <button
-          onClick={signOut}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,.14)",
-            background: "rgba(255,255,255,.06)",
-            color: "white",
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
-          Sign out
-        </button>
+    <Page>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ fontWeight: 900, fontSize: 18 }}>Sign in</div>
+
+        <div style={{ opacity: 0.9, fontSize: 13 }}>
+          Authorized users only.
+        </div>
+
+        <div>
+          <Label>Email</Label>
+          <Input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@domain.com"
+            autoComplete="email"
+          />
+        </div>
+
+        <div>
+          <Label>Password</Label>
+          <Input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            type="password"
+            autoComplete="current-password"
+          />
+        </div>
+
+        <Button onClick={signInWithPassword}>
+          {busy ? "Signing in…" : "Sign in"}
+        </Button>
+
+        {err && (
+          <div style={{ marginTop: 2, color: "#ff6b6b", fontSize: 13 }}>
+            {err}
+          </div>
+        )}
       </div>
-      {children}
-    </>
+    </Page>
   );
 }

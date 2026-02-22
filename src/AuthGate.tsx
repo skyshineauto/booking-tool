@@ -1,5 +1,5 @@
 // src/AuthGate.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 
 type Props = { children: React.ReactNode };
@@ -9,8 +9,8 @@ export default function AuthGate({ children }: Props) {
   const [stage, setStage] = useState<Stage>("LOADING");
   const [session, setSession] = useState<any>(null);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const emailRef = useRef<HTMLInputElement | null>(null);
+  const passRef = useRef<HTMLInputElement | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -46,15 +46,18 @@ export default function AuthGate({ children }: Props) {
 
   async function signInWithPassword() {
     setErr(null);
-    const e = email.trim().toLowerCase();
+
+    const e = (emailRef.current?.value ?? "").trim().toLowerCase();
+    const p = passRef.current?.value ?? "";
+
     if (!e) return setErr("Enter your email.");
-    if (!password) return setErr("Enter your password.");
+    if (!p) return setErr("Enter your password.");
 
     setBusy(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email: e,
-        password,
+        password: p,
       });
       if (error) {
         setErr(error.message);
@@ -75,13 +78,26 @@ export default function AuthGate({ children }: Props) {
       await supabase.auth.signOut();
       setSession(null);
       setStage("SIGN_IN");
-      setEmail("");
-      setPassword("");
       setErr(null);
+      if (emailRef.current) emailRef.current.value = "";
+      if (passRef.current) passRef.current.value = "";
     } finally {
       setBusy(false);
     }
   }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "13px 12px 13px 40px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,.14)",
+    background: "rgba(255,255,255,.05)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 14,
+    transition: "box-shadow 180ms ease, border-color 180ms ease, background 180ms ease",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+  };
 
   const Page = ({ children: pageChildren }: { children: React.ReactNode }) => (
     <div
@@ -97,65 +113,6 @@ export default function AuthGate({ children }: Props) {
         color: "white",
       }}
     >
-      <style>{`
-        @keyframes hazeShift {
-          0% { transform: translate3d(-6%, -6%, 0) scale(1.06); filter: blur(28px); opacity: .52; }
-          50% { transform: translate3d(6%, 4%, 0) scale(1.08); filter: blur(34px); opacity: .58; }
-          100% { transform: translate3d(-6%, -6%, 0) scale(1.06); filter: blur(28px); opacity: .52; }
-        }
-        @keyframes grainMove {
-          0% { transform: translate(0,0); }
-          100% { transform: translate(-6%, -10%); }
-        }
-
-        /* IMPORTANT: no JS focus styling — fixes “one character then blur” in most cases */
-        .ss-input{
-          width:100%;
-          padding: 13px 12px 13px 40px;
-          border-radius: 12px;
-          border: 1px solid rgba(255,255,255,.14);
-          background: rgba(255,255,255,.05);
-          color: #fff;
-          outline: none;
-          font-size: 14px;
-          transition: box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-        }
-        .ss-input:focus{
-          border-color: rgba(0,190,255,.55);
-          box-shadow: 0 0 0 4px rgba(0,190,255,.14), inset 0 1px 0 rgba(255,255,255,.05);
-          background: rgba(255,255,255,.06);
-        }
-
-        .ss-btn{
-          width:100%;
-          padding: 12px 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(255,255,255,.14);
-          background: rgba(0,190,255,.18);
-          color: #fff;
-          font-weight: 900;
-          cursor: pointer;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          transition: transform 120ms ease, filter 120ms ease, background 160ms ease, box-shadow 160ms ease;
-          box-shadow: 0 14px 34px rgba(0,190,255,.10), inset 0 1px 0 rgba(255,255,255,.08);
-        }
-        .ss-btn:hover{
-          transform: translateY(-1px);
-          filter: brightness(1.08);
-          background: rgba(0,190,255,.22);
-          box-shadow: 0 18px 44px rgba(0,190,255,.14), 0 0 0 1px rgba(0,190,255,.12), inset 0 1px 0 rgba(255,255,255,.10);
-        }
-        .ss-btn:disabled{
-          cursor:not-allowed;
-          filter:none;
-          transform:none;
-          background: rgba(0,190,255,.10);
-          box-shadow:none;
-        }
-      `}</style>
-
       {/* overlays */}
       <div
         aria-hidden="true"
@@ -163,20 +120,7 @@ export default function AuthGate({ children }: Props) {
           pointerEvents: "none",
           position: "absolute",
           inset: 0,
-          background:
-            "linear-gradient(to bottom, rgba(5,6,10,.78), rgba(5,6,10,.84))",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          pointerEvents: "none",
-          position: "absolute",
-          inset: "-20%",
-          background:
-            "radial-gradient(closest-side at 30% 40%, rgba(0,190,255,.20), transparent 65%), radial-gradient(closest-side at 70% 35%, rgba(255,140,0,.10), transparent 60%)",
-          animation: "hazeShift 18s ease-in-out infinite",
-          mixBlendMode: "screen",
+          background: "linear-gradient(to bottom, rgba(5,6,10,.78), rgba(5,6,10,.84))",
         }}
       />
       <div
@@ -187,19 +131,6 @@ export default function AuthGate({ children }: Props) {
           inset: 0,
           background:
             "radial-gradient(1200px 700px at 50% 45%, rgba(0,0,0,.28), rgba(0,0,0,.72) 70%, rgba(0,0,0,.86) 100%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          pointerEvents: "none",
-          position: "absolute",
-          inset: "-30%",
-          opacity: 0.08,
-          backgroundImage:
-            "repeating-radial-gradient(circle at 10% 10%, rgba(255,255,255,.16) 0 1px, transparent 1px 3px)",
-          animation: "grainMove 8s linear infinite",
-          mixBlendMode: "overlay",
         }}
       />
 
@@ -222,7 +153,8 @@ export default function AuthGate({ children }: Props) {
             src={logoUrl}
             alt="SkyShine Auto Detailing"
             style={{
-              width: "clamp(300px, 34vw, 620px)", // BIGGER
+              // slightly smaller on mobile (min reduced from 300 -> 240)
+              width: "clamp(240px, 34vw, 620px)",
               height: "auto",
               display: "block",
               margin: "0 auto 14px auto",
@@ -231,7 +163,7 @@ export default function AuthGate({ children }: Props) {
             }}
           />
 
-          {/* “Pop” headline: layered glow + crisp top */}
+          {/* layered headline */}
           <div style={{ position: "relative", display: "inline-block" }}>
             <div
               aria-hidden="true"
@@ -247,8 +179,7 @@ export default function AuthGate({ children }: Props) {
                 textTransform: "uppercase",
                 fontSize: "clamp(28px, 3.9vw, 56px)",
                 lineHeight: 1.06,
-                textShadow:
-                  "0 28px 80px rgba(0,0,0,.70), 0 0 26px rgba(0,190,255,.24)",
+                textShadow: "0 28px 80px rgba(0,0,0,.70), 0 0 26px rgba(0,190,255,.24)",
               }}
             >
               SKYSHINE AUTO DETAILING
@@ -305,39 +236,12 @@ export default function AuthGate({ children }: Props) {
             border: "1px solid rgba(255,255,255,.14)",
             background: "rgba(12,14,18,.58)",
             backdropFilter: "blur(14px)",
-            boxShadow:
-              "0 28px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.06)",
+            boxShadow: "0 28px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.06)",
             padding: "clamp(18px, 2.4vw, 26px)",
             textAlign: "left",
             position: "relative",
           }}
         >
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: 14,
-              right: 14,
-              top: 10,
-              height: 1,
-              borderRadius: 999,
-              background:
-                "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.18), rgba(255,255,255,0))",
-              opacity: 0.7,
-            }}
-          />
-          <div
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: 20,
-              boxShadow:
-                "inset 0 0 0 1px rgba(0,190,255,.10), inset 0 -40px 120px rgba(0,0,0,.35)",
-              pointerEvents: "none",
-            }}
-          />
-
           {pageChildren}
 
           <div
@@ -373,27 +277,18 @@ export default function AuthGate({ children }: Props) {
     </div>
   );
 
-  const Field = ({
-    icon,
-    children,
-  }: {
-    icon: React.ReactNode;
-    children: React.ReactNode;
-  }) => (
-    <div style={{ position: "relative" }}>
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: 12,
-          top: "50%",
-          transform: "translateY(-50%)",
-          opacity: 0.75,
-          pointerEvents: "none",
-        }}
-      >
-        {icon}
-      </div>
+  const IconWrap = ({ children }: { children: React.ReactNode }) => (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        left: 12,
+        top: "50%",
+        transform: "translateY(-50%)",
+        opacity: 0.75,
+        pointerEvents: "none",
+      }}
+    >
       {children}
     </div>
   );
@@ -431,7 +326,6 @@ export default function AuthGate({ children }: Props) {
     </svg>
   );
 
-  // ----- states -----
   if (stage === "DONE" && session) {
     return (
       <>
@@ -467,7 +361,6 @@ export default function AuthGate({ children }: Props) {
     );
   }
 
-  // SIGN_IN
   return (
     <Page>
       <div
@@ -502,48 +395,82 @@ export default function AuthGate({ children }: Props) {
         <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: "0.02em" }}>
           Sign in
         </div>
-        <div style={{ opacity: 0.85, fontSize: 13 }}>
-          Authorized users only.
-        </div>
+        <div style={{ opacity: 0.85, fontSize: 13 }}>Authorized users only.</div>
 
         <div>
           <Label>Email</Label>
-          <Field icon={MailIcon}>
+          <div style={{ position: "relative" }}>
+            <IconWrap>{MailIcon}</IconWrap>
             <input
-              className="ss-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              ref={emailRef}
+              style={inputStyle}
               placeholder="you@domain.com"
               autoComplete="email"
               spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="none"
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "rgba(0,190,255,.55)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 0 4px rgba(0,190,255,.14), inset 0 1px 0 rgba(255,255,255,.05)";
+                e.currentTarget.style.background = "rgba(255,255,255,.06)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
+                e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,.04)";
+                e.currentTarget.style.background = "rgba(255,255,255,.05)";
+              }}
             />
-          </Field>
+          </div>
         </div>
 
         <div>
           <Label>Password</Label>
-          <Field icon={LockIcon}>
+          <div style={{ position: "relative" }}>
+            <IconWrap>{LockIcon}</IconWrap>
             <input
-              className="ss-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              ref={passRef}
+              style={inputStyle}
               placeholder="••••••••"
               type="password"
               autoComplete="current-password"
               spellCheck={false}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "rgba(0,190,255,.55)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 0 4px rgba(0,190,255,.14), inset 0 1px 0 rgba(255,255,255,.05)";
+                e.currentTarget.style.background = "rgba(255,255,255,.06)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
+                e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,.04)";
+                e.currentTarget.style.background = "rgba(255,255,255,.05)";
+              }}
             />
-          </Field>
+          </div>
         </div>
 
-        <button className="ss-btn" onClick={signInWithPassword} disabled={busy}>
+        <button
+          onClick={signInWithPassword}
+          disabled={busy}
+          style={{
+            width: "100%",
+            padding: "12px 12px",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,.14)",
+            background: busy ? "rgba(0,190,255,.10)" : "rgba(0,190,255,.18)",
+            color: "white",
+            fontWeight: 900,
+            cursor: busy ? "not-allowed" : "pointer",
+            letterSpacing: ".12em",
+            textTransform: "uppercase",
+            transition: "transform 120ms ease, filter 120ms ease, background 160ms ease",
+          }}
+        >
           {busy ? "Signing in…" : "Sign in"}
         </button>
 
-        {err && (
-          <div style={{ marginTop: 4, color: "#ff6b6b", fontSize: 13 }}>
-            {err}
-          </div>
-        )}
+        {err && <div style={{ marginTop: 4, color: "#ff6b6b", fontSize: 13 }}>{err}</div>}
       </div>
     </Page>
   );

@@ -3,122 +3,14 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 
 type Props = { children: React.ReactNode };
-
 type Stage = "LOADING" | "SIGN_IN" | "DONE";
 
-export default function AuthGate({ children }: Props) {
-  const [stage, setStage] = useState<Stage>("LOADING");
-  const [session, setSession] = useState<any>(null);
+// ---------- UI (DEFINED OUTSIDE to prevent remount / focus loss) ----------
+const bgUrl = "/bg-garage.jpg";
+const logoUrl = "/logo.png";
 
-  // Sign-in form
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  // UI state
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const normEmail = (v: string) => v.trim().toLowerCase();
-
-  const timeoutPromise = (ms: number) =>
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out. Try again.")), ms)
-    );
-
-  // ---------- session bootstrap ----------
-  useEffect(() => {
-    let mounted = true;
-
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
-
-      if (error) {
-        setErr(error.message);
-        setStage("SIGN_IN");
-        return;
-      }
-
-      setSession(data.session);
-
-      if (!data.session) setStage("SIGN_IN");
-      else setStage("DONE");
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
-      if (!mounted) return;
-      setSession(s);
-      setStage(s ? "DONE" : "SIGN_IN");
-    });
-
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  // ---------- actions ----------
-  async function signInWithPassword() {
-    setErr(null);
-
-    const e = normEmail(email);
-    if (!e) return setErr("Enter your email.");
-    if (!password) return setErr("Enter your password.");
-
-    setBusy(true);
-    try {
-      const signInPromise = supabase.auth.signInWithPassword({
-        email: e,
-        password,
-      });
-
-      const { data, error } = await Promise.race([
-        signInPromise,
-        timeoutPromise(12000),
-      ]);
-
-      if (error) {
-        // Friendly hint when signups are disabled / user not invited
-        const msg = error.message || "Sign-in failed.";
-        if (
-          msg.toLowerCase().includes("invalid login") ||
-          msg.toLowerCase().includes("invalid") ||
-          msg.toLowerCase().includes("user not found")
-        ) {
-          setErr("Invalid credentials or user not authorized.");
-        } else {
-          setErr(msg);
-        }
-        return;
-      }
-
-      setSession(data.session);
-      setStage("DONE");
-    } catch (e2: any) {
-      setErr(e2?.message ?? "Sign-in failed. Try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function signOut() {
-    setErr(null);
-    setBusy(true);
-    try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setStage("SIGN_IN");
-      setEmail("");
-      setPassword("");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // ---------- UI ----------
-  const bgUrl = "/bg-garage.jpg";
-  const logoUrl = "/logo.png";
-
-  const Page = ({ children: pageChildren }: { children: React.ReactNode }) => (
+function Page({ children }: { children: React.ReactNode }) {
+  return (
     <div
       style={{
         minHeight: "100vh",
@@ -145,12 +37,13 @@ export default function AuthGate({ children }: Props) {
             src={logoUrl}
             alt="SkyShine Auto Detailing"
             style={{
-              width: "clamp(140px, 18vw, 240px)",
+              // bigger on desktop but still safe on mobile
+              width: "clamp(170px, 22vw, 340px)",
               height: "auto",
               display: "block",
-              marginBottom: "clamp(10px, 1.5vw, 14px)",
+              marginBottom: "clamp(10px, 1.6vw, 16px)",
               filter:
-                "drop-shadow(0 22px 55px rgba(0,0,0,.60)) drop-shadow(0 0 18px rgba(0,190,255,.22))",
+                "drop-shadow(0 24px 60px rgba(0,0,0,.62)) drop-shadow(0 0 22px rgba(0,190,255,.22))",
             }}
           />
 
@@ -158,7 +51,7 @@ export default function AuthGate({ children }: Props) {
             style={{
               fontWeight: 900,
               textTransform: "uppercase",
-              fontSize: "clamp(30px, 4.4vw, 60px)",
+              fontSize: "clamp(30px, 4.6vw, 64px)",
               lineHeight: 1.05,
               letterSpacing: "clamp(.06em, .35vw, .14em)",
               textShadow:
@@ -171,10 +64,10 @@ export default function AuthGate({ children }: Props) {
           <div
             style={{
               marginTop: "clamp(8px, 1.4vw, 14px)",
-              fontWeight: 700,
-              fontSize: "clamp(14px, 1.9vw, 22px)",
+              fontWeight: 800,
+              fontSize: "clamp(15px, 2.1vw, 24px)",
               letterSpacing: "0.06em",
-              opacity: 0.95,
+              opacity: 0.96,
               textShadow: "0 10px 40px rgba(0,0,0,.55)",
             }}
           >
@@ -196,7 +89,7 @@ export default function AuthGate({ children }: Props) {
             textAlign: "left",
           }}
         >
-          {pageChildren}
+          {children}
 
           <div
             style={{
@@ -216,8 +109,10 @@ export default function AuthGate({ children }: Props) {
       </div>
     </div>
   );
+}
 
-  const Label = ({ children: t }: { children: React.ReactNode }) => (
+function Label({ children }: { children: React.ReactNode }) {
+  return (
     <div
       style={{
         fontSize: 12,
@@ -227,11 +122,13 @@ export default function AuthGate({ children }: Props) {
         marginBottom: 7,
       }}
     >
-      {t}
+      {children}
     </div>
   );
+}
 
-  const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
     <input
       {...props}
       style={{
@@ -248,8 +145,13 @@ export default function AuthGate({ children }: Props) {
       }}
     />
   );
+}
 
-  const Button = (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+function Button(
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }
+) {
+  const busy = !!props.busy;
+  return (
     <button
       {...props}
       style={{
@@ -270,8 +172,102 @@ export default function AuthGate({ children }: Props) {
       disabled={busy || props.disabled}
     />
   );
+}
 
-  // ---------- render ----------
+// ---------- AuthGate ----------
+export default function AuthGate({ children }: Props) {
+  const [stage, setStage] = useState<Stage>("LOADING");
+  const [session, setSession] = useState<any>(null);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const normEmail = (v: string) => v.trim().toLowerCase();
+
+  const timeoutPromise = (ms: number) =>
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out. Try again.")), ms)
+    );
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+
+      if (error) {
+        setErr(error.message);
+        setStage("SIGN_IN");
+        return;
+      }
+
+      setSession(data.session);
+      setStage(data.session ? "DONE" : "SIGN_IN");
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+      if (!mounted) return;
+      setSession(s);
+      setStage(s ? "DONE" : "SIGN_IN");
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function signInWithPassword() {
+    setErr(null);
+
+    const e = normEmail(email);
+    if (!e) return setErr("Enter your email.");
+    if (!password) return setErr("Enter your password.");
+
+    setBusy(true);
+    try {
+      const signInPromise = supabase.auth.signInWithPassword({
+        email: e,
+        password,
+      });
+
+      const { data, error } = await Promise.race([
+        signInPromise,
+        timeoutPromise(12000),
+      ]);
+
+      if (error) {
+        const msg = error.message || "Sign-in failed.";
+        setErr(msg);
+        return;
+      }
+
+      setSession(data.session);
+      setStage("DONE");
+    } catch (e2: any) {
+      setErr(e2?.message ?? "Sign-in failed. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function signOut() {
+    setErr(null);
+    setBusy(true);
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setStage("SIGN_IN");
+      setEmail("");
+      setPassword("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (stage === "DONE" && session) {
     return (
       <>
@@ -306,15 +302,12 @@ export default function AuthGate({ children }: Props) {
     );
   }
 
-  // SIGN_IN
   return (
     <Page>
       <div style={{ display: "grid", gap: 12 }}>
         <div style={{ fontWeight: 900, fontSize: 18 }}>Sign in</div>
 
-        <div style={{ opacity: 0.9, fontSize: 13 }}>
-          Authorized users only.
-        </div>
+        <div style={{ opacity: 0.9, fontSize: 13 }}>Authorized users only.</div>
 
         <div>
           <Label>Email</Label>
@@ -337,7 +330,7 @@ export default function AuthGate({ children }: Props) {
           />
         </div>
 
-        <Button onClick={signInWithPassword}>
+        <Button onClick={signInWithPassword} busy={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </Button>
 

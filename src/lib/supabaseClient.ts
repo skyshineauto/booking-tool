@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+// Hardcoded to avoid Cloudflare env injection issues.
+// Publishable key is safe for frontend use with RLS enabled.
+const supabaseUrl = sb_publishable_yg0iXd_S0Fv10AuaLmxaFA_OY3hsmb6
+const supabaseAnonKey = "PASTE_YOUR_sb_publishable_KEY_HERE";
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

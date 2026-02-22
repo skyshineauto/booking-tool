@@ -5,208 +5,46 @@ import { supabase } from "./lib/supabaseClient";
 type Props = { children: React.ReactNode };
 type Stage = "LOADING" | "SIGN_IN" | "DONE";
 
-// ---------- UI (DEFINED OUTSIDE to prevent remount / focus loss) ----------
-const bgUrl = "/bg-garage.jpg";
-const logoUrl = "/logo.png";
-
-function Page({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        width: "100%",
-        background: `linear-gradient(to bottom, rgba(5,6,10,.88), rgba(5,6,10,.82)), url(${bgUrl}) center/cover no-repeat`,
-        display: "grid",
-        placeItems: "center",
-        padding: "clamp(18px, 4vw, 44px)",
-        color: "white",
-      }}
-    >
-      <div
-        style={{
-          width: "min(1040px, 100%)",
-          display: "grid",
-          gap: "clamp(18px, 3vw, 30px)",
-          justifyItems: "center",
-          textAlign: "center",
-        }}
-      >
-        {/* HERO */}
-        <div style={{ display: "grid", justifyItems: "center" }}>
-          <img
-            src={logoUrl}
-            alt="SkyShine Auto Detailing"
-            style={{
-              // bigger on desktop but still safe on mobile
-              width: "clamp(170px, 22vw, 340px)",
-              height: "auto",
-              display: "block",
-              marginBottom: "clamp(10px, 1.6vw, 16px)",
-              filter:
-                "drop-shadow(0 24px 60px rgba(0,0,0,.62)) drop-shadow(0 0 22px rgba(0,190,255,.22))",
-            }}
-          />
-
-          <div
-            style={{
-              fontWeight: 900,
-              textTransform: "uppercase",
-              fontSize: "clamp(30px, 4.6vw, 64px)",
-              lineHeight: 1.05,
-              letterSpacing: "clamp(.06em, .35vw, .14em)",
-              textShadow:
-                "0 18px 60px rgba(0,0,0,.60), 0 0 22px rgba(0,190,255,.10)",
-            }}
-          >
-            SKYSHINE AUTO DETAILING
-          </div>
-
-          <div
-            style={{
-              marginTop: "clamp(8px, 1.4vw, 14px)",
-              fontWeight: 800,
-              fontSize: "clamp(15px, 2.1vw, 24px)",
-              letterSpacing: "0.06em",
-              opacity: 0.96,
-              textShadow: "0 10px 40px rgba(0,0,0,.55)",
-            }}
-          >
-            Booking Tool • Secure Access
-          </div>
-        </div>
-
-        {/* CARD */}
-        <div
-          style={{
-            width: "min(560px, 100%)",
-            borderRadius: 20,
-            border: "1px solid rgba(255,255,255,.16)",
-            background: "rgba(12,14,18,.62)",
-            backdropFilter: "blur(12px)",
-            boxShadow:
-              "0 26px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.07)",
-            padding: "clamp(16px, 2.4vw, 26px)",
-            textAlign: "left",
-          }}
-        >
-          {children}
-
-          <div
-            style={{
-              marginTop: 16,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(255,255,255,.10)",
-              textAlign: "center",
-              fontSize: 12,
-              letterSpacing: "0.08em",
-              opacity: 0.85,
-              textTransform: "uppercase",
-            }}
-          >
-            Terms of Use © 2026 SkyShine AutoDetailing
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 12,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        opacity: 0.85,
-        marginBottom: 7,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      style={{
-        width: "100%",
-        padding: "12px 12px",
-        borderRadius: 12,
-        border: "1px solid rgba(255,255,255,.14)",
-        background: "rgba(255,255,255,.04)",
-        color: "white",
-        outline: "none",
-        fontSize: 14,
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,.06)",
-        ...(props.style || {}),
-      }}
-    />
-  );
-}
-
-function Button(
-  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }
-) {
-  const busy = !!props.busy;
-  return (
-    <button
-      {...props}
-      style={{
-        width: "100%",
-        padding: "12px 12px",
-        borderRadius: 12,
-        border: "1px solid rgba(0,190,255,.22)",
-        background: busy ? "rgba(0,190,255,.10)" : "rgba(0,190,255,.18)",
-        color: "white",
-        fontWeight: 900,
-        cursor: busy ? "not-allowed" : "pointer",
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        boxShadow:
-          "0 14px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10)",
-        ...(props.style || {}),
-      }}
-      disabled={busy || props.disabled}
-    />
-  );
-}
-
-// ---------- AuthGate ----------
 export default function AuthGate({ children }: Props) {
   const [stage, setStage] = useState<Stage>("LOADING");
   const [session, setSession] = useState<any>(null);
 
+  // Sign-in form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // UI state
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const normEmail = (v: string) => v.trim().toLowerCase();
+  // assets (public/)
+  const bgUrl = "/bg-garage.jpg";
+  const logoUrl = "/logo.png";
 
-  const timeoutPromise = (ms: number) =>
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Request timed out. Try again.")), ms)
-    );
-
+  // ---------- session bootstrap ----------
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          setErr(error.message);
+          setStage("SIGN_IN");
+          return;
+        }
 
-      if (error) {
-        setErr(error.message);
+        setSession(data.session);
+
+        if (!data.session) setStage("SIGN_IN");
+        else setStage("DONE");
+      })
+      .catch((e) => {
+        if (!mounted) return;
+        setErr(e?.message ?? "Auth error.");
         setStage("SIGN_IN");
-        return;
-      }
-
-      setSession(data.session);
-      setStage(data.session ? "DONE" : "SIGN_IN");
-    });
+      });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
       if (!mounted) return;
@@ -220,28 +58,22 @@ export default function AuthGate({ children }: Props) {
     };
   }, []);
 
+  // ---------- actions ----------
   async function signInWithPassword() {
     setErr(null);
-
-    const e = normEmail(email);
+    const e = email.trim().toLowerCase();
     if (!e) return setErr("Enter your email.");
     if (!password) return setErr("Enter your password.");
 
     setBusy(true);
     try {
-      const signInPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: e,
         password,
       });
 
-      const { data, error } = await Promise.race([
-        signInPromise,
-        timeoutPromise(12000),
-      ]);
-
       if (error) {
-        const msg = error.message || "Sign-in failed.";
-        setErr(msg);
+        setErr(error.message);
         return;
       }
 
@@ -268,6 +100,364 @@ export default function AuthGate({ children }: Props) {
     }
   }
 
+  // ---------- UI helpers ----------
+  const Label = ({ children: t }: { children: React.ReactNode }) => (
+    <div
+      style={{
+        fontSize: 11,
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        opacity: 0.85,
+        marginBottom: 6,
+      }}
+    >
+      {t}
+    </div>
+  );
+
+  const Field = ({
+    icon,
+    children,
+  }: {
+    icon: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <div style={{ position: "relative" }}>
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: 12,
+          top: "50%",
+          transform: "translateY(-50%)",
+          opacity: 0.75,
+          pointerEvents: "none",
+        }}
+      >
+        {icon}
+      </div>
+      {children}
+    </div>
+  );
+
+  const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <input
+      {...props}
+      style={{
+        width: "100%",
+        padding: "13px 12px 13px 40px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,.14)",
+        background: "rgba(255,255,255,.05)",
+        color: "white",
+        outline: "none",
+        fontSize: 14,
+        transition: "box-shadow 180ms ease, border-color 180ms ease, background 180ms ease",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,.04)",
+        ...(props.style || {}),
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = "rgba(0,190,255,.55)";
+        e.currentTarget.style.boxShadow =
+          "0 0 0 4px rgba(0,190,255,.14), inset 0 1px 0 rgba(255,255,255,.05)";
+        e.currentTarget.style.background = "rgba(255,255,255,.06)";
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = "rgba(255,255,255,.14)";
+        e.currentTarget.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,.04)";
+        e.currentTarget.style.background = "rgba(255,255,255,.05)";
+        props.onBlur?.(e);
+      }}
+    />
+  );
+
+  const Button = (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button
+      {...props}
+      style={{
+        width: "100%",
+        padding: "12px 12px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,.14)",
+        background: busy ? "rgba(0,190,255,.10)" : "rgba(0,190,255,.18)",
+        color: "white",
+        fontWeight: 900,
+        cursor: busy ? "not-allowed" : "pointer",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        transition: "transform 120ms ease, filter 120ms ease, background 160ms ease, box-shadow 160ms ease",
+        boxShadow: busy
+          ? "none"
+          : "0 14px 34px rgba(0,190,255,.10), inset 0 1px 0 rgba(255,255,255,.08)",
+        ...(props.style || {}),
+      }}
+      disabled={busy || props.disabled}
+      onMouseEnter={(e) => {
+        if (busy) return;
+        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.filter = "brightness(1.08)";
+        e.currentTarget.style.background = "rgba(0,190,255,.22)";
+        e.currentTarget.style.boxShadow =
+          "0 18px 44px rgba(0,190,255,.14), 0 0 0 1px rgba(0,190,255,.12), inset 0 1px 0 rgba(255,255,255,.10)";
+        props.onMouseEnter?.(e);
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.filter = "none";
+        e.currentTarget.style.background = busy ? "rgba(0,190,255,.10)" : "rgba(0,190,255,.18)";
+        e.currentTarget.style.boxShadow = busy
+          ? "none"
+          : "0 14px 34px rgba(0,190,255,.10), inset 0 1px 0 rgba(255,255,255,.08)";
+        props.onMouseLeave?.(e);
+      }}
+    />
+  );
+
+  const MailIcon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Z"
+        stroke="rgba(255,255,255,.82)"
+        strokeWidth="1.6"
+      />
+      <path
+        d="M6.2 7.6 12 12l5.8-4.4"
+        stroke="rgba(0,190,255,.85)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+
+  const LockIcon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M7.5 11V8.8A4.5 4.5 0 0 1 12 4.3a4.5 4.5 0 0 1 4.5 4.5V11"
+        stroke="rgba(255,255,255,.82)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M7.2 11h9.6A2.2 2.2 0 0 1 19 13.2v5.6A2.2 2.2 0 0 1 16.8 21H7.2A2.2 2.2 0 0 1 5 18.8v-5.6A2.2 2.2 0 0 1 7.2 11Z"
+        stroke="rgba(0,190,255,.85)"
+        strokeWidth="1.6"
+      />
+    </svg>
+  );
+
+  const Page = ({ children: pageChildren }: { children: React.ReactNode }) => (
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        position: "relative",
+        overflow: "hidden",
+        background: `url(${bgUrl}) center/cover no-repeat`,
+        display: "grid",
+        placeItems: "center",
+        padding: "clamp(18px, 4vw, 40px)",
+        color: "white",
+      }}
+    >
+      {/* CSS (keyframes + grain) */}
+      <style>{`
+        @keyframes hazeShift {
+          0% { transform: translate3d(-6%, -6%, 0) scale(1.06); filter: blur(28px); opacity: .52; }
+          50% { transform: translate3d(6%, 4%, 0) scale(1.08); filter: blur(34px); opacity: .58; }
+          100% { transform: translate3d(-6%, -6%, 0) scale(1.06); filter: blur(28px); opacity: .52; }
+        }
+        @keyframes grainMove {
+          0% { transform: translate(0,0); }
+          100% { transform: translate(-6%, -10%); }
+        }
+      `}</style>
+
+      {/* Overlays (cinematic) */}
+      <div
+        aria-hidden="true"
+        style={{
+          pointerEvents: "none",
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(to bottom, rgba(5,6,10,.78), rgba(5,6,10,.84))",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        style={{
+          pointerEvents: "none",
+          position: "absolute",
+          inset: "-20%",
+          background:
+            "radial-gradient(closest-side at 30% 40%, rgba(0,190,255,.20), transparent 65%), radial-gradient(closest-side at 70% 35%, rgba(255,140,0,.10), transparent 60%)",
+          animation: "hazeShift 18s ease-in-out infinite",
+          mixBlendMode: "screen",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        style={{
+          pointerEvents: "none",
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(1200px 700px at 50% 45%, rgba(0,0,0,.28), rgba(0,0,0,.72) 70%, rgba(0,0,0,.86) 100%)",
+        }}
+      />
+      {/* Grain (tiny opacity, safe) */}
+      <div
+        aria-hidden="true"
+        style={{
+          pointerEvents: "none",
+          position: "absolute",
+          inset: "-30%",
+          opacity: 0.08,
+          backgroundImage:
+            "repeating-radial-gradient(circle at 10% 10%, rgba(255,255,255,.16) 0 1px, transparent 1px 3px)",
+          animation: "grainMove 8s linear infinite",
+          mixBlendMode: "overlay",
+        }}
+      />
+
+      {/* Content */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          width: "min(980px, 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "clamp(18px, 3.2vw, 28px)",
+          textAlign: "center",
+        }}
+      >
+        {/* Hero */}
+        <div style={{ width: "100%" }}>
+          <img
+            src={logoUrl}
+            alt="SkyShine Auto Detailing"
+            style={{
+              // BIGGER on desktop, still responsive everywhere
+              width: "clamp(240px, 30vw, 520px)",
+              height: "auto",
+              display: "block",
+              margin: "0 auto 14px auto",
+              filter:
+                "drop-shadow(0 26px 60px rgba(0,0,0,.60)) drop-shadow(0 0 18px rgba(0,190,255,.22))",
+            }}
+          />
+
+          <div
+            style={{
+              fontWeight: 900,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              fontSize: "clamp(26px, 3.6vw, 52px)",
+              lineHeight: 1.08,
+              textShadow:
+                "0 14px 50px rgba(0,0,0,.62), 0 0 18px rgba(0,190,255,.10)",
+            }}
+          >
+            SKYSHINE AUTO DETAILING
+          </div>
+
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: "clamp(14px, 1.6vw, 20px)",
+              opacity: 0.94,
+              letterSpacing: "0.08em",
+              fontWeight: 700,
+              textShadow: "0 10px 36px rgba(0,0,0,.55)",
+            }}
+          >
+            Booking Tool • Secure Access
+          </div>
+
+          {/* Accent line (cyan → orange) */}
+          <div
+            aria-hidden="true"
+            style={{
+              width: "min(560px, 92%)",
+              height: 2,
+              margin: "14px auto 0 auto",
+              borderRadius: 999,
+              background:
+                "linear-gradient(90deg, rgba(0,190,255,.0), rgba(0,190,255,.85), rgba(255,140,0,.70), rgba(255,140,0,0))",
+              boxShadow: "0 10px 30px rgba(0,190,255,.10)",
+            }}
+          />
+        </div>
+
+        {/* Card */}
+        <div
+          style={{
+            width: "min(560px, 100%)",
+            borderRadius: 20,
+            border: "1px solid rgba(255,255,255,.14)",
+            background: "rgba(12,14,18,.58)",
+            backdropFilter: "blur(14px)",
+            boxShadow:
+              "0 28px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.06)",
+            padding: "clamp(18px, 2.4vw, 26px)",
+            textAlign: "left",
+            position: "relative",
+          }}
+        >
+          {/* top highlight */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: 14,
+              right: 14,
+              top: 10,
+              height: 1,
+              borderRadius: 999,
+              background:
+                "linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.18), rgba(255,255,255,0))",
+              opacity: 0.7,
+            }}
+          />
+          {/* inner glow edge */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: 20,
+              boxShadow:
+                "inset 0 0 0 1px rgba(0,190,255,.10), inset 0 -40px 120px rgba(0,0,0,.35)",
+              pointerEvents: "none",
+            }}
+          />
+
+          {pageChildren}
+
+          <div
+            style={{
+              marginTop: 16,
+              paddingTop: 12,
+              borderTop: "1px solid rgba(255,255,255,.10)",
+              textAlign: "center",
+              fontSize: 12,
+              letterSpacing: "0.10em",
+              opacity: 0.85,
+              textTransform: "uppercase",
+            }}
+          >
+            Terms of Use © 2026 SkyShine AutoDetailing
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ---------- render ----------
   if (stage === "DONE" && session) {
     return (
       <>
@@ -282,9 +472,10 @@ export default function AuthGate({ children }: Props) {
               color: "white",
               cursor: "pointer",
               fontSize: 12,
-              backdropFilter: "blur(8px)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              backdropFilter: "blur(10px)",
             }}
-            disabled={busy}
           >
             Sign out
           </button>
@@ -297,45 +488,82 @@ export default function AuthGate({ children }: Props) {
   if (stage === "LOADING") {
     return (
       <Page>
-        <div style={{ padding: 6, opacity: 0.9 }}>Loading…</div>
+        <div style={{ opacity: 0.92, fontWeight: 700 }}>Loading…</div>
       </Page>
     );
   }
 
+  // SIGN_IN
   return (
     <Page>
-      <div style={{ display: "grid", gap: 12 }}>
-        <div style={{ fontWeight: 900, fontSize: 18 }}>Sign in</div>
+      {/* tiny badge */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "7px 10px",
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,.12)",
+          background: "rgba(0,0,0,.22)",
+          marginBottom: 12,
+          textTransform: "uppercase",
+          letterSpacing: "0.14em",
+          fontSize: 11,
+          opacity: 0.95,
+        }}
+      >
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 99,
+            background: "rgba(0,190,255,.9)",
+            boxShadow: "0 0 0 4px rgba(0,190,255,.12)",
+          }}
+        />
+        Secure Portal
+      </div>
 
-        <div style={{ opacity: 0.9, fontSize: 13 }}>Authorized users only.</div>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div style={{ fontWeight: 900, fontSize: 18, letterSpacing: "0.02em" }}>
+          Sign in
+        </div>
+        <div style={{ opacity: 0.85, fontSize: 13 }}>
+          Authorized users only.
+        </div>
 
         <div>
           <Label>Email</Label>
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@domain.com"
-            autoComplete="email"
-          />
+          <Field icon={MailIcon}>
+            <Input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@domain.com"
+              autoComplete="email"
+            />
+          </Field>
         </div>
 
         <div>
           <Label>Password</Label>
-          <Input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            type="password"
-            autoComplete="current-password"
-          />
+          <Field icon={LockIcon}>
+            <Input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              type="password"
+              autoComplete="current-password"
+            />
+          </Field>
         </div>
 
-        <Button onClick={signInWithPassword} busy={busy}>
+        <Button onClick={signInWithPassword}>
           {busy ? "Signing in…" : "Sign in"}
         </Button>
 
         {err && (
-          <div style={{ marginTop: 2, color: "#ff6b6b", fontSize: 13 }}>
+          <div style={{ marginTop: 4, color: "#ff6b6b", fontSize: 13 }}>
             {err}
           </div>
         )}

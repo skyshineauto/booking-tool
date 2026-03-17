@@ -1,4 +1,5 @@
 // src/App.tsx
+import { supabase } from "./lib/supabaseClient";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Tab = "Quote" | "Job Log" | "Dashboard" | "Settings";

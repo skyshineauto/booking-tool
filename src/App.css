@@ -1134,27 +1134,85 @@
 /* ===== Modal ===== */
 .modalBackdrop{
   position: fixed;
-  inset:0;
-  background: rgba(0,0,0,.55);
+  inset: 0;
+  background: rgba(0,0,0,.60);
   z-index: 60;
-  display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
 }
+
 .modal{
   width: min(980px, 100%);
+  max-height: calc(100dvh - 28px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: rgba(10,14,24,.96);
-  border:1px solid rgba(255,255,255,.14);
+  border: 1px solid rgba(255,255,255,.14);
   border-radius: var(--r);
   box-shadow: 0 22px 70px rgba(0,0,0,.65);
-  padding: 12px;
 }
-.modalHead{ display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; }
-.modalTitle{ font-weight: 1100; letter-spacing:.06em; }
-.modalGrid{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 860px){ .modalGrid{ grid-template-columns: 1fr; } }
 
+.modalHead{
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(10,14,24,.98);
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.modalTitle{
+  font-weight: 1100;
+  letter-spacing: .06em;
+}
+
+.modalGrid{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 860px){
+  .modalBackdrop{
+    align-items: center;
+    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .modal{
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+  }
+
+  .modalGrid{
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .modalHead{
+    padding: 10px;
+  }
+
+  .modal .actionsRow{
+    padding: 0 10px 10px;
+    justify-content: stretch !important;
+  }
+
+  .modal .actionsRow .btn{
+    flex: 1 1 100%;
+  }
+}
 /* ===== Job Log (dense) ===== */
 .logCard{
   background: rgba(255,255,255,.04);

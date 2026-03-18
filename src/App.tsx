@@ -608,6 +608,18 @@ function sortJobLogDesc(rows: JobLogEntry[]) {
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
 }
 
+async function getWorkspaceIdForUser(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.workspace_id ?? null;
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;

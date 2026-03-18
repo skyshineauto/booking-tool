@@ -765,7 +765,7 @@ function tableEditorRow(
   );
 }
 
-export default function App() {
+export default function App({ onSignOut }: { onSignOut?: () => void }) {
   const [tab, setTab] = useState<Tab>("Quote");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [jobLog, setJobLog] = useState<JobLogEntry[]>([]);
@@ -1875,16 +1875,23 @@ const [cust, setCust] = useState<CustomerVehicle>({
         </div>
 
         {/* CENTER: Brand */}
-        <div className="topbarCenter" aria-label="Brand">
-          <img
-            className="logo logoTop"
-            src="/logo.png"
-            alt="SkyShine"
-            onError={(e) => (e.currentTarget.style.display = "none")}
-          />
-          <div className="topbarBrand">{settings.brandName}</div>
-          <div className="topbarTitle">BOOKING TOOL</div>
-        </div>
+<div className="topbarCenter" aria-label="Brand">
+  <div className="topbarBrandRow">
+    <img
+      className="logo logoTop"
+      src="/logo.png"
+      alt="SkyShine"
+      onError={(e) => (e.currentTarget.style.display = "none")}
+    />
+    {onSignOut && (
+      <button className="topbarSignOut" onClick={onSignOut}>
+        Sign out
+      </button>
+    )}
+  </div>
+  <div className="topbarBrand">{settings.brandName}</div>
+  <div className="topbarTitle">BOOKING TOOL</div>
+</div>
 
         {/* RIGHT: Tabs + Live + Time */}
         <div className="topbarRight" aria-label="Navigation">

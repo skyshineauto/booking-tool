@@ -1729,3 +1729,13 @@
 .logSubStrong{ font-weight:900; color: rgba(255,255,255,.92); }
 .logSubDim{ color: rgba(255,255,255,.60); }
 
+@media (max-width: 980px){
+  .topbar{
+    transition: transform .24s ease, opacity .2s ease;
+  }
+
+  .topbar.isHidden{
+    transform: translateY(-102%);
+    opacity: .96;
+  }
+}

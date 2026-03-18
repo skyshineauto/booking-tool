@@ -1759,7 +1759,23 @@ const [cust, setCust] = useState<CustomerVehicle>({
         </div>
       </header>
 
-      <div className={`wrap ${tab === "Quote" ? "hasHud" : ""}`}>
+           <div className={`wrap ${tab === "Quote" ? "hasHud" : ""}`}>
+        {syncError && (
+          <div
+            style={{
+              margin: "0 0 12px",
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,77,109,.35)",
+              background: "rgba(255,77,109,.10)",
+              color: "rgba(255,235,240,.96)",
+              fontWeight: 900,
+            }}
+          >
+            Sync issue: {syncError}
+          </div>
+        )}
+
         {/* Summary strip */}
         <div className="summaryStrip">
           <div className="sChip"><span>Service</span> <b>{stripChips.service}</b></div>

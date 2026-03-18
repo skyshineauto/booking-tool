@@ -626,6 +626,14 @@ function sanitizeJobLogEntryForDb(entry: JobLogEntry) {
   return copy;
 }
 
+function upsertJobLogLocal(prev: JobLogEntry[], next: JobLogEntry) {
+  const idx = prev.findIndex((x) => x.id === next.id);
+  if (idx === -1) return sortJobLogDesc([next, ...prev]);
+  const copy = [...prev];
+  copy[idx] = next;
+  return sortJobLogDesc(copy);
+}
+
 function sortJobLogDesc(rows: JobLogEntry[]) {
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
 }

@@ -604,6 +604,21 @@ function replaceSettingsFromRemote(
   setSettings(deepMergeSettings(next));
 }
 
+function dbRowToJobLogEntry(row: JobLogEntryRow): JobLogEntry {
+  const raw = row?.data || {};
+  const actual = raw.actual || {};
+
+  return {
+    ...raw,
+    id: row.id,
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    actual: {
+      status: (actual.status as BookStatus) || "Pending",
+      notBookedReason: actual.notBookedReason as NotBookedReason | undefined,
+    },
+  } as JobLogEntry;
+}
+
 function sortJobLogDesc(rows: JobLogEntry[]) {
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
 }

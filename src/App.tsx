@@ -657,6 +657,37 @@ async function fetchWorkspaceJobLog(workspaceId: string): Promise<JobLogEntry[]>
   return ((data || []) as JobLogEntryRow[]).map(dbRowToJobLogEntry);
 }
 
+async function upsertWorkspaceSettings(
+  workspaceId: string,
+  userId: string,
+  settings: Settings
+): Promise<void> {
+  const payload = {
+    workspace_id: workspaceId,
+    user_id: userId,
+    data: settings,
+    updated_at: new Date().toISOString(),
+  };
+
+  const existing = await fetchWorkspaceSettings(workspaceId);
+
+  if (existing) {
+    const { error } = await supabase
+      .from("app_settings")
+      .update(payload)
+      .eq("workspace_id", workspaceId);
+
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase
+    .from("app_settings")
+    .insert(payload);
+
+  if (error) throw error;
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;

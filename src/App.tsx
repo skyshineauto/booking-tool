@@ -595,6 +595,15 @@ function saveLogLocal(log: JobLogEntry[]) {
   safeSetItem(LS_JOBLOG, JSON.stringify(log));
 }
 
+function replaceSettingsFromRemote(
+  next: any,
+  setSettings: React.Dispatch<React.SetStateAction<Settings>>,
+  skipRef: React.MutableRefObject<boolean>
+) {
+  skipRef.current = true;
+  setSettings(deepMergeSettings(next));
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;

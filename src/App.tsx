@@ -2520,7 +2520,7 @@ const [cust, setCust] = useState<CustomerVehicle>({
               </div>
 
               {/* right panel */}
-              <div>
+<div className="settingsPanel">
                 {settingsSection === "Targets" && (
                   <div className="scCard">
                     <div className="scHead">
@@ -3202,7 +3202,7 @@ const [cust, setCust] = useState<CustomerVehicle>({
             </div>
 
             <div className="actionsRow" style={{ justifyContent: "flex-end", marginTop: 10 }}>
-              <button className="btn" onClick={copyDetailed}>Copy Detailed</button>
+              <button className="btn" onClick={copyDetailed}>Copy Details</button>
               <button className="btn" onClick={copyHelperText}>Copy Helper</button>
               <button className="btn danger" onClick={resetAll}>Reset</button>
             </div>

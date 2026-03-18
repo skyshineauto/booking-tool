@@ -1738,4 +1738,27 @@
     transform: translateY(-102%);
     opacity: .96;
   }
+
+  .topbarBrandRow{
+    display: inline-grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .topbarSignOut{
+    height: 28px;
+    padding: 0 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.35);
+    color: white;
+    cursor: pointer;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+  }
 }

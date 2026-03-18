@@ -604,6 +604,10 @@ function replaceSettingsFromRemote(
   setSettings(deepMergeSettings(next));
 }
 
+function sortJobLogDesc(rows: JobLogEntry[]) {
+  return [...rows].sort((a, b) => b.createdAt - a.createdAt);
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;
@@ -612,7 +616,6 @@ function paymentFee(settings: Settings, payment: Payment, priceExTax: number): n
   const fix = payment === "TapChip" ? settings.tapFixed : settings.onlineFixed;
   return base * pct + fix;
 }
-
 function priceToPass(
   settings: Settings,
   payment: Payment,

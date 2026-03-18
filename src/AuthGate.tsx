@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 
-type Props = { children: React.ReactNode };
+type Props = { children: React.ReactElement };
 type Stage = "LOADING" | "SIGN_IN" | "DONE";
 
 export default function AuthGate({ children }: Props) {
@@ -327,31 +327,8 @@ export default function AuthGate({ children }: Props) {
   );
 
   if (stage === "DONE" && session) {
-    return (
-      <>
-        <div style={{ position: "fixed", right: 12, top: 12, zIndex: 9999 }}>
-          <button
-            onClick={signOut}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,.14)",
-              background: "rgba(0,0,0,.35)",
-              color: "white",
-              cursor: "pointer",
-              fontSize: 12,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              backdropFilter: "blur(10px)",
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-        {children}
-      </>
-    );
-  }
+  return React.cloneElement(children, { onSignOut: signOut } as any);
+}
 
   if (stage === "LOADING") {
     return (

@@ -1729,6 +1729,22 @@
 .logSubStrong{ font-weight:900; color: rgba(255,255,255,.92); }
 .logSubDim{ color: rgba(255,255,255,.60); }
 
+.topbarSignOut{
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.35);
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
 @media (max-width: 980px){
   .topbar{
     transition: transform .24s ease, opacity .2s ease;
@@ -1750,15 +1766,6 @@
   .topbarSignOut{
     height: 28px;
     padding: 0 9px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.14);
-    background: rgba(0,0,0,.35);
-    color: white;
-    cursor: pointer;
     font-size: 9px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    backdrop-filter: blur(10px);
-    white-space: nowrap;
   }
 }

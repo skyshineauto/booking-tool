@@ -1633,26 +1633,27 @@
 
 @media (max-width: 860px){
   .modalBackdrop{
-    align-items: stretch;
-    justify-content: stretch;
+    align-items: center;
+    justify-content: center;
     padding:
-      max(4px, env(safe-area-inset-top))
-      max(4px, env(safe-area-inset-right))
-      max(4px, env(safe-area-inset-bottom))
-      max(4px, env(safe-area-inset-left));
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
   }
 
   .modal{
     width: 100%;
     max-width: 100%;
-    max-height: 100dvh;
-    height: calc(100dvh - 8px);
+    max-height: calc(100dvh - 16px);
+    height: auto;
     border-radius: 16px;
   }
 
   .modalHead{
-    padding: 10px;
+    padding: 9px 10px;
     gap: 8px;
+    align-items: center;
   }
 
   .modalTitle{
@@ -1661,9 +1662,11 @@
   }
 
   .modalHead .btn{
-    min-width: 80px;
-    height: 40px;
+    min-width: 70px;
+    height: 32px;
     padding: 0 10px;
+    border-radius: 999px;
+    font-size: 11px;
   }
 
   .modalGrid{
@@ -1674,36 +1677,65 @@
 
   .modal .actionsRow{
     padding: 0 10px 10px;
-    justify-content: stretch !important;
-    flex-direction: column;
+    justify-content: flex-end !important;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .modal .actionsRow .btn{
-    width: 100%;
-    flex: 1 1 100%;
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 11px;
+    border-radius: 999px;
+    white-space: nowrap;
   }
 }
 
 @media (max-width: 520px){
   .modalBackdrop{
     padding:
-      max(2px, env(safe-area-inset-top))
-      max(2px, env(safe-area-inset-right))
-      max(2px, env(safe-area-inset-bottom))
-      max(2px, env(safe-area-inset-left));
+      max(6px, env(safe-area-inset-top))
+      max(6px, env(safe-area-inset-right))
+      max(6px, env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
   }
 
   .modal{
-    height: calc(100dvh - 4px);
+    max-height: calc(100dvh - 12px);
     border-radius: 14px;
   }
 
   .modalHead{
-    padding: 9px;
+    padding: 8px 9px;
+  }
+
+  .modalTitle{
+    font-size: 13px;
+  }
+
+  .modalHead .btn{
+    min-width: 64px;
+    height: 30px;
+    padding: 0 9px;
+    font-size: 10px;
   }
 
   .modalGrid{
     padding: 8px;
+  }
+
+  .modal .actionsRow{
+    padding: 0 8px 8px;
+    gap: 6px;
+  }
+
+  .modal .actionsRow .btn{
+    height: 30px;
+    padding: 0 9px;
+    font-size: 10px;
   }
 }
 /* ===== Job Log (dense) ===== */

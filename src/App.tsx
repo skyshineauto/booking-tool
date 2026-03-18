@@ -620,6 +620,17 @@ async function getWorkspaceIdForUser(userId: string): Promise<string | null> {
   return data?.workspace_id ?? null;
 }
 
+async function fetchWorkspaceSettings(workspaceId: string): Promise<AppSettingsRow | null> {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("workspace_id,user_id,updated_at,data")
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as AppSettingsRow | null) ?? null;
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;

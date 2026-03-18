@@ -619,6 +619,13 @@ function dbRowToJobLogEntry(row: JobLogEntryRow): JobLogEntry {
   } as JobLogEntry;
 }
 
+function sanitizeJobLogEntryForDb(entry: JobLogEntry) {
+  const copy: any = JSON.parse(JSON.stringify(entry));
+  delete copy.id;
+  delete copy.createdAt;
+  return copy;
+}
+
 function sortJobLogDesc(rows: JobLogEntry[]) {
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
 }

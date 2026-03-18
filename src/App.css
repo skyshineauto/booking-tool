@@ -1816,4 +1816,145 @@
     padding: 0 9px;
     font-size: 9px;
   }
+
+  /* ===== Settings mobile fix ===== */
+  .admin{
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible !important;
+  }
+
+  .navBox{
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin-bottom: 10px;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    overflow: visible !important;
+  }
+
+  .navBtn{
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal !important;
+    line-height: 1.15;
+    text-align: center;
+    padding: 10px 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .settingsPanel{
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible !important;
+  }
+
+  .settingsPanel .scCard,
+  .settingsPanel .drawerCard,
+  .settingsPanel .hBlock{
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .settingsPanel .table{
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .settingsPanel .table thead,
+  .settingsPanel .table tbody,
+  .settingsPanel .table tr{
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .settingsPanel input,
+  .settingsPanel select,
+  .settingsPanel textarea,
+  .settingsPanel button{
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .settingsPanel .actionsRow{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .settingsPanel .actionsRow .btn{
+    width: 100%;
+  }
+
+  .settingsPanel .saveDock{
+    position: static !important;
+    inset: auto !important;
+    bottom: auto !important;
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .settingsPanel .saveWrap{
+    width: 100%;
+  }
+
+  .settingsPanel .saveWrap .btn{
+    width: 100%;
+  }
+
+  .settingsPanel div[style*="grid-template-columns: 1fr 1fr"]{
+    grid-template-columns: 1fr !important;
+  }
+
+  .settingsPanel div[style*="grid-template-columns: repeat(2, minmax(0,1fr))"]{
+    grid-template-columns: 1fr !important;
+  }
+
+  .settingsPanel div[style*="grid-template-columns: repeat(3, minmax(0,1fr))"]{
+    grid-template-columns: 1fr !important;
+  }
+
+  .settingsPanel div[style*="grid-template-columns: 1fr 140px"]{
+    grid-template-columns: 1fr !important;
+  }
+
+  .settingsPanel div[style*="grid-template-columns: 1.4fr .5fr .5fr .5fr .5fr auto"]{
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 520px){
+  .navBox{
+    grid-template-columns: 1fr;
+  }
+
+  .navBtn{
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+
+  .settingsPanel .table{
+    font-size: 12px;
+  }
 }

@@ -970,6 +970,42 @@ useEffect(() => {
     supabase.removeChannel(channel);
   };
 }, [workspaceId]);
+const [headerHidden, setHeaderHidden] = useState(false);
+
+useEffect(() => {
+  let lastY = window.scrollY;
+  let ticking = false;
+
+  const onScroll = () => {
+    if (window.innerWidth > 980) {
+      setHeaderHidden(false);
+      lastY = window.scrollY;
+      return;
+    }
+
+    if (ticking) return;
+    ticking = true;
+
+    window.requestAnimationFrame(() => {
+      const y = window.scrollY;
+      const delta = y - lastY;
+
+      if (y <= 12) {
+        setHeaderHidden(false);
+      } else if (delta > 10) {
+        setHeaderHidden(true);
+      } else if (delta < -10) {
+        setHeaderHidden(false);
+      }
+
+      lastY = y;
+      ticking = false;
+    });
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
 
 const [now, setNow] = useState<Date>(() => new Date());
 useEffect(() => {
@@ -1825,7 +1861,7 @@ const [cust, setCust] = useState<CustomerVehicle>({
       <div className="vignette" />
       <div className="bokeh" />
 
-      <header className="topbar" aria-label="SkyShine header">
+      <header className={`topbar ${headerHidden ? "isHidden" : ""}`} aria-label="SkyShine header">
         {/* LEFT: Metrics */}
         <div className="topbarLeft" aria-label="Targets">
           <div className="topbarMetric">

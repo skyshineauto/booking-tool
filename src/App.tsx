@@ -560,20 +560,21 @@ function loadSettings(): Settings {
   try {
     const raw = safeGetItem(LS_SETTINGS);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw);
-    return deepMergeSettings(parsed);
+    return deepMergeSettings(JSON.parse(raw));
   } catch {
     return DEFAULT_SETTINGS;
   }
 }
-function saveSettings(s: Settings): boolean {
+
+function saveSettingsLocal(s: Settings): boolean {
   return safeSetItem(LS_SETTINGS, JSON.stringify(s));
 }
+
 function loadLog(): JobLogEntry[] {
   try {
     const raw = safeGetItem(LS_JOBLOG);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as any;
+    const parsed = JSON.parse(raw) as any[];
     if (!Array.isArray(parsed)) return [];
     return parsed.map((j: any) => {
       const actual = j.actual || {};
@@ -589,7 +590,8 @@ function loadLog(): JobLogEntry[] {
     return [];
   }
 }
-function saveLog(log: JobLogEntry[]) {
+
+function saveLogLocal(log: JobLogEntry[]) {
   safeSetItem(LS_JOBLOG, JSON.stringify(log));
 }
 

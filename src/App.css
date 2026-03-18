@@ -1105,42 +1105,168 @@
 /* ===== HUD v2 (Quote only) ===== */
 .hud2{
   position: fixed;
-  left:0; right:0; bottom:0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 40;
-  background: rgba(7,10,16,.92);
+  padding:
+    0
+    max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+  background:
+    linear-gradient(180deg, rgba(7,10,16,.82), rgba(7,10,16,.96));
   border-top: 1px solid rgba(255,255,255,.10);
   backdrop-filter: blur(12px);
+  box-shadow: 0 -14px 34px rgba(0,0,0,.32);
 }
+
 .hud2Inner{
   max-width: 1220px;
   margin: 0 auto;
+  min-height: var(--hudH);
   padding: 10px 14px;
-  height: var(--hudH);
-  display:grid;
-  grid-template-columns: 1.2fr 1fr auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .9fr) auto;
   gap: 12px;
-  align-items:center;
+  align-items: center;
 }
-.hud2Left{ font-weight: 950; color: rgba(255,255,255,.70); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.hud2Center{ display:flex; flex-direction:column; align-items:center; gap: 4px; line-height:1.05; }
-.hud2Price{ font-weight: 1100; font-size: 18px; font-variant-numeric: tabular-nums; }
-.hud2Reco{ font-weight: 1100; font-size: 13px; letter-spacing:.08em; }
+
+.hud2Left{
+  min-width: 0;
+  font-weight: 950;
+  color: rgba(255,255,255,.70);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud2Center{
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.hud2Price{
+  font-weight: 1100;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud2Reco{
+  font-weight: 1100;
+  font-size: 13px;
+  letter-spacing: .08em;
+}
+
 .hud2Reco.cyan{ color: var(--cyan); }
 .hud2Reco.orange{ color: var(--orange); }
 .hud2Reco.bad{ color: var(--bad); }
-.hud2Meta{ font-weight: 900; color: rgba(255,255,255,.70); font-size: 12px; white-space:nowrap; }
-.hud2Right{ display:flex; gap: 8px; justify-content:flex-end; }
 
+.hud2Meta{
+  font-weight: 900;
+  color: rgba(255,255,255,.70);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hud2Right{
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hud2Right .btn{
+  flex: 0 0 auto;
+}
+
+@media (max-width: 860px){
+  .hud2{
+    padding:
+      0
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .hud2Inner{
+    min-height: 0;
+    height: auto;
+    padding: 10px 10px 12px;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .hud2Left{
+    order: 1;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: initial;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .hud2Center{
+    order: 2;
+  }
+
+  .hud2Right{
+    order: 3;
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .hud2Right .btn{
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 520px){
+  .hud2Inner{
+    padding: 8px 8px 10px;
+  }
+
+  .hud2Price{
+    font-size: 17px;
+  }
+
+  .hud2Reco{
+    font-size: 12px;
+  }
+
+  .hud2Meta{
+    font-size: 11px;
+    white-space: normal;
+  }
+
+  .hud2Right{
+    grid-template-columns: 1fr;
+  }
+}
 /* ===== Modal ===== */
 .modalBackdrop{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.60);
+  background: rgba(0,0,0,.68);
   z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  padding:
+    max(14px, env(safe-area-inset-top))
+    max(14px, env(safe-area-inset-right))
+    max(14px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
 }
 
 .modal{
@@ -1158,7 +1284,7 @@
 .modalHead{
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1168,7 +1294,13 @@
   border-bottom: 1px solid rgba(255,255,255,.10);
 }
 
+.modalHead .btn{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .modalTitle{
+  min-width: 0;
   font-weight: 1100;
   letter-spacing: .06em;
 }
@@ -1186,13 +1318,27 @@
 
 @media (max-width: 860px){
   .modalBackdrop{
-    align-items: center;
-    padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+    align-items: flex-end;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
   }
 
   .modal{
     width: 100%;
-    max-height: calc(100dvh - 20px);
+    max-height: calc(100dvh - 8px);
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modalHead{
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .modalTitle{
+    font-size: 14px;
   }
 
   .modalGrid{
@@ -1200,17 +1346,44 @@
     padding: 10px;
   }
 
-  .modalHead{
-    padding: 10px;
-  }
-
   .modal .actionsRow{
     padding: 0 10px 10px;
     justify-content: stretch !important;
+    flex-direction: column;
   }
 
   .modal .actionsRow .btn{
+    width: 100%;
     flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 520px){
+  .modalBackdrop{
+    padding:
+      max(4px, env(safe-area-inset-top))
+      max(4px, env(safe-area-inset-right))
+      max(4px, env(safe-area-inset-bottom))
+      max(4px, env(safe-area-inset-left));
+  }
+
+  .modal{
+    max-height: calc(100dvh - 4px);
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modalHead{
+    padding: 9px;
+  }
+
+  .modalHead .btn{
+    min-width: 76px;
+    height: 38px;
+    padding: 0 10px;
+  }
+
+  .modalGrid{
+    padding: 8px;
   }
 }
 /* ===== Job Log (dense) ===== */

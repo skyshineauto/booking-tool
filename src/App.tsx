@@ -631,6 +631,17 @@ async function fetchWorkspaceSettings(workspaceId: string): Promise<AppSettingsR
   return (data as AppSettingsRow | null) ?? null;
 }
 
+async function fetchWorkspaceJobLog(workspaceId: string): Promise<JobLogEntry[]> {
+  const { data, error } = await supabase
+    .from("job_log_entries")
+    .select("id,user_id,workspace_id,created_at,data")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return ((data || []) as JobLogEntryRow[]).map(dbRowToJobLogEntry);
+}
+
 function paymentFee(settings: Settings, payment: Payment, priceExTax: number): number {
   if (payment === "Cash") return 0;
   const tax = priceExTax * settings.taxRate;

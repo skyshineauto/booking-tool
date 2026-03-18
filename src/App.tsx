@@ -660,61 +660,242 @@ function tableEditorRow(
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("Quote");
-  const [settings, setSettings] = useState<Settings>(() => loadSettings());
-  const [jobLog, setJobLog] = useState<JobLogEntry[]>(() => loadLog());
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [jobLog, setJobLog] = useState<JobLogEntry[]>([]);
   const [toast, setToast] = useState<string>("");
   const [saveAnim, setSaveAnim] = useState(false);
 
-  // Autosave settings (debounced). Some environments block storage, so we surface that.
-  const didMount = useRef(false);
-  useEffect(() => {
-    if (!didMount.current) {
-      didMount.current = true;
-      return;
-    }
-    const t = window.setTimeout(() => {
-      const ok = saveSettings(settings);
-      if (tab === "Settings") {
-        setToast(ok ? "Auto-saved ✓" : "Storage blocked — can’t save");
-        window.setTimeout(() => setToast(""), 1500);
-      }
-    }, 600);
-    return () => window.clearTimeout(t);
-  }, [settings, tab]);
-  useEffect(() => saveLog(jobLog), [jobLog]);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [isHydrating, setIsHydrating] = useState(true);
+  const [syncError, setSyncError] = useState<string>("");
 
-  const [now, setNow] = useState<Date>(() => new Date());
+  const skipNextSettingsAutosaveRef = useRef(true);
+  const settingsSaveTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000 * 30);
-    return () => clearInterval(t);
+    let alive = true;
+
+    async function hydrate() {
+      setIsHydrating(true);
+      setSyncError("");
+
+      try {
+        const fallbackSettings = loadSettings();
+        const fallbackJobLog = loadLog();
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (userError) throw userError;
+        if (!alive) return;
+
+        if (!user) {
+          replaceSettingsFromRemote(fallbackSettings, setSettings, skipNextSettingsAutosaveRef);
+          setJobLog(sortJobLogDesc(fallbackJobLog));
+          setWorkspaceId(null);
+          setAuthUserId(null);
+          return;
+        }
+
+        setAuthUserId(user.id);
+
+        const wsId = await getWorkspaceIdForUser(user.id);
+        if (!alive) return;
+
+        if (!wsId) {
+          replaceSettingsFromRemote(fallbackSettings, setSettings, skipNextSettingsAutosaveRef);
+          setJobLog(sortJobLogDesc(fallbackJobLog));
+          setSyncError("No workspace found for this user.");
+          return;
+        }
+
+        setWorkspaceId(wsId);
+
+        const [settingsRow, remoteJobLog] = await Promise.all([
+          fetchWorkspaceSettings(wsId),
+          fetchWorkspaceJobLog(wsId),
+        ]);
+
+        if (!alive) return;
+
+        const nextSettings = settingsRow?.data
+          ? deepMergeSettings(settingsRow.data)
+          : fallbackSettings;
+
+        replaceSettingsFromRemote(nextSettings, setSettings, skipNextSettingsAutosaveRef);
+        saveSettingsLocal(nextSettings);
+
+        const nextLog = remoteJobLog.length ? remoteJobLog : fallbackJobLog;
+        setJobLog(sortJobLogDesc(nextLog));
+        saveLogLocal(nextLog);
+
+        if (!settingsRow) {
+          try {
+            await upsertWorkspaceSettings(wsId, user.id, nextSettings);
+          } catch {
+            //
+          }
+        }
+      } catch (err: any) {
+        const fallbackSettings = loadSettings();
+        const fallbackJobLog = loadLog();
+        replaceSettingsFromRemote(fallbackSettings, setSettings, skipNextSettingsAutosaveRef);
+        setJobLog(sortJobLogDesc(fallbackJobLog));
+        setSyncError(err?.message || "Sync hydrate failed.");
+      } finally {
+        if (alive) setIsHydrating(false);
+      }
+    }
+
+    hydrate();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Quote selections
-  const [service, setService] = useState<Service>("Full");
-  const [tier, setTier] = useState<Tier>("Ignite");
-  const [ceramicPkg, setCeramicPkg] = useState<CeramicPkg>("Recharge");
-  const [vehicle, setVehicle] = useState<VehicleUI>("Car");
-  const [condition, setCondition] = useState<Condition>("Standard");
-  const [payment, setPayment] = useState<Payment>("TapChip");
-  const [chosenMode, setChosenMode] = useState<"Solo" | "Helper">("Solo");
+  useEffect(() => {
+    if (skipNextSettingsAutosaveRef.current) {
+      skipNextSettingsAutosaveRef.current = false;
+      return;
+    }
 
-  const [priceMode, setPriceMode] = useState<"table" | "override">("table");
-  const [priceOverride, setPriceOverride] = useState<number>(0);
+    saveSettingsLocal(settings);
 
-  const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
-  const [hudOpen, setHudOpen] = useState(false);
+    if (settingsSaveTimerRef.current) {
+      window.clearTimeout(settingsSaveTimerRef.current);
+    }
 
-  const [custOpen, setCustOpen] = useState(false);
-  const [cust, setCust] = useState<CustomerVehicle>({
-    customerName: "",
-    phone: "",
-    email: "",
-    year: "",
-    make: "",
-    model: "",
-    color: "",
-    notes: "",
-  });
+    settingsSaveTimerRef.current = window.setTimeout(async () => {
+      if (!workspaceId || !authUserId) {
+        if (tab === "Settings") {
+          setToast("Saved locally only");
+          window.setTimeout(() => setToast(""), 1400);
+        }
+        return;
+      }
+
+      try {
+        setSaveAnim(true);
+        await upsertWorkspaceSettings(workspaceId, authUserId, settings);
+        if (tab === "Settings") {
+          setToast("Synced ✓");
+          window.setTimeout(() => setToast(""), 1400);
+        }
+      } catch (err: any) {
+        setSyncError(err?.message || "Settings sync failed.");
+        if (tab === "Settings") {
+          setToast("Sync failed — local backup kept");
+          window.setTimeout(() => setToast(""), 1800);
+        }
+      } finally {
+        setSaveAnim(false);
+      }
+    }, 600);
+
+    return () => {
+      if (settingsSaveTimerRef.current) {
+        window.clearTimeout(settingsSaveTimerRef.current);
+      }
+    };
+  }, [settings, workspaceId, authUserId, tab]);
+
+useEffect(() => {
+  if (!workspaceId) return;
+
+  const channel = supabase
+    .channel(`workspace-sync-${workspaceId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "app_settings",
+        filter: `workspace_id=eq.${workspaceId}`,
+      },
+      (payload) => {
+        const row = payload.new as AppSettingsRow | undefined;
+        if (!row?.data) return;
+
+        const next = deepMergeSettings(row.data);
+        replaceSettingsFromRemote(next, setSettings, skipNextSettingsAutosaveRef);
+        saveSettingsLocal(next);
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "job_log_entries",
+        filter: `workspace_id=eq.${workspaceId}`,
+      },
+      (payload) => {
+        if (payload.eventType === "DELETE") {
+          const oldRow = payload.old as { id?: string } | undefined;
+          if (!oldRow?.id) return;
+
+          setJobLog((prev) => {
+            const next = prev.filter((x) => x.id !== oldRow.id);
+            saveLogLocal(next);
+            return next;
+          });
+          return;
+        }
+
+        const row = payload.new as JobLogEntryRow | undefined;
+        if (!row?.id) return;
+
+        const mapped = dbRowToJobLogEntry(row);
+        setJobLog((prev) => {
+          const next = upsertJobLogLocal(prev, mapped);
+          saveLogLocal(next);
+          return next;
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [workspaceId]);
+
+const [now, setNow] = useState<Date>(() => new Date());
+useEffect(() => {
+  const t = setInterval(() => setNow(new Date()), 1000 * 30);
+  return () => clearInterval(t);
+}, []);
+
+// Quote selections
+const [service, setService] = useState<Service>("Full");
+const [tier, setTier] = useState<Tier>("Ignite");
+const [ceramicPkg, setCeramicPkg] = useState<CeramicPkg>("Recharge");
+const [vehicle, setVehicle] = useState<VehicleUI>("Car");
+const [condition, setCondition] = useState<Condition>("Standard");
+const [payment, setPayment] = useState<Payment>("TapChip");
+const [chosenMode, setChosenMode] = useState<"Solo" | "Helper">("Solo");
+
+const [priceMode, setPriceMode] = useState<"table" | "override">("table");
+const [priceOverride, setPriceOverride] = useState<number>(0);
+
+const [selectedAddons, setSelectedAddons] = useState<Record<string, boolean>>({});
+const [hudOpen, setHudOpen] = useState(false);
+
+const [custOpen, setCustOpen] = useState(false);
+const [cust, setCust] = useState<CustomerVehicle>({
+  customerName: "",
+  phone: "",
+  email: "",
+  year: "",
+  make: "",
+  model: "",
+  color: "",
+  notes: "",
+});
 
   const [savePulse, setSavePulse] = useState(false);
 
@@ -1001,13 +1182,14 @@ export default function App() {
     copyText(text);
   }
 
-  function saveToJobLog() {
+   async function saveToJobLog() {
     const phoneDigits = (cust.phone || "").replace(/\D/g, "");
     if (!cust.customerName.trim() || phoneDigits.length < 10) {
       setToast("Add Name + Phone to save");
       setTimeout(() => setToast(""), 1600);
       return;
     }
+
     const entry: JobLogEntry = {
       id: uid(),
       createdAt: Date.now(),
@@ -1022,7 +1204,18 @@ export default function App() {
         priceOverride,
         addons: Object.keys(selectedAddons).filter((k) => selectedAddons[k]),
         chosenMode,
-        customer: cust,
+        customer: settings.storeCustomerContact
+          ? cust
+          : {
+              customerName: "",
+              phone: "",
+              email: "",
+              year: "",
+              make: "",
+              model: "",
+              color: "",
+              notes: "",
+            },
       },
       solo,
       helper,
@@ -1032,14 +1225,67 @@ export default function App() {
       },
       actual: { status: "Pending" },
     };
-    setJobLog((p) => [entry, ...p]);
+
     setSavePulse(true);
     window.setTimeout(() => setSavePulse(false), 650);
-    if (settings.clearCustomerAfterSave) {
-      setCust({ customerName: "", phone: "", email: "", year: "", make: "", model: "", color: "", notes: "" });
+
+    try {
+      if (workspaceId && authUserId) {
+        const payload = {
+          workspace_id: workspaceId,
+          user_id: authUserId,
+          data: sanitizeJobLogEntryForDb(entry),
+        };
+
+        const { data, error } = await supabase
+          .from("job_log_entries")
+          .insert(payload)
+          .select("id,user_id,workspace_id,created_at,data")
+          .single();
+
+        if (error) throw error;
+
+        const saved = dbRowToJobLogEntry(data as JobLogEntryRow);
+        setJobLog((prev) => {
+          const next = upsertJobLogLocal(prev, saved);
+          saveLogLocal(next);
+          return next;
+        });
+
+        setToast("Saved + synced ✅");
+      } else {
+        setJobLog((prev) => {
+          const next = sortJobLogDesc([entry, ...prev]);
+          saveLogLocal(next);
+          return next;
+        });
+        setToast("Saved locally only");
+      }
+
+      if (settings.clearCustomerAfterSave) {
+        setCust({
+          customerName: "",
+          phone: "",
+          email: "",
+          year: "",
+          make: "",
+          model: "",
+          color: "",
+          notes: "",
+        });
+      }
+    } catch (err: any) {
+      const localEntry = { ...entry, id: entry.id || uid() };
+      setJobLog((prev) => {
+        const next = sortJobLogDesc([localEntry, ...prev]);
+        saveLogLocal(next);
+        return next;
+      });
+      setSyncError(err?.message || "Job log save failed.");
+      setToast("Sync failed — saved locally");
     }
-    setToast("Saved ✅");
-    setTimeout(() => setToast(""), 1400);
+
+    setTimeout(() => setToast(""), 1600);
   }
 
   function loadFromJob(j: JobLogEntry) {
@@ -1247,11 +1493,28 @@ export default function App() {
     : recommendation.recommended;
   const rec = bestMode === "Helper" ? helper : solo;
 
-  // Settings save button toast
-  function saveSettingsManual() {
-    const ok = saveSettings(settings);
-    setToast(ok ? "Saved ✅" : "Storage blocked — can’t save ❌");
-    setTimeout(() => setToast(""), 1400);
+   // Settings save button toast
+  async function saveSettingsManual() {
+    saveSettingsLocal(settings);
+
+    if (!workspaceId || !authUserId) {
+      setToast("Saved locally only");
+      setTimeout(() => setToast(""), 1400);
+      return;
+    }
+
+    try {
+      setSaveAnim(true);
+      await upsertWorkspaceSettings(workspaceId, authUserId, settings);
+      setToast("Synced ✅");
+      setTimeout(() => setToast(""), 1400);
+    } catch (err: any) {
+      setSyncError(err?.message || "Manual settings sync failed.");
+      setToast("Sync failed — local backup kept");
+      setTimeout(() => setToast(""), 1800);
+    } finally {
+      setSaveAnim(false);
+    }
   }
 
   // Export/Import
@@ -1264,38 +1527,139 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  async function importJSON(file: File) {
+   async function importJSON(file: File) {
     const text = await file.text();
     const parsed = JSON.parse(text) as Settings;
-    setSettings(deepMergeSettings(parsed));
+    const merged = deepMergeSettings(parsed);
+    setSettings(merged);
+    saveSettingsLocal(merged);
     setToast("Imported ✅");
     setTimeout(() => setToast(""), 1400);
   }
 
-  function setLogStatus(id: string, status: BookStatus) {
-    setJobLog((prev) =>
-      prev.map((j) =>
-        j.id === id
-          ? {
-              ...j,
-              actual: {
-                ...j.actual,
-                status,
-                notBookedReason:
-                  status === "NotBooked" ? (j.actual.notBookedReason || "Price") : undefined,
-              },
-            }
-          : j
-      )
-    );
+   async function setLogStatus(id: string, status: BookStatus) {
+    let updatedEntry: JobLogEntry | null = null;
+
+    setJobLog((prev) => {
+      const next = prev.map((j) => {
+        if (j.id !== id) return j;
+        const updated = {
+          ...j,
+          actual: {
+            ...j.actual,
+            status,
+            notBookedReason:
+              status === "NotBooked" ? (j.actual.notBookedReason || "Price") : undefined,
+          },
+        };
+        updatedEntry = updated;
+        return updated;
+      });
+      saveLogLocal(next);
+      return next;
+    });
+
+    if (!workspaceId || !updatedEntry) return;
+
+    try {
+      const { error } = await supabase
+        .from("job_log_entries")
+        .update({ data: sanitizeJobLogEntryForDb(updatedEntry) })
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+
+      if (error) throw error;
+    } catch (err: any) {
+      setSyncError(err?.message || "Status update sync failed.");
+      setToast("Status sync failed");
+      setTimeout(() => setToast(""), 1600);
+    }
   }
 
-  function setLogNotBookedReason(id: string, reason: NotBookedReason) {
-    setJobLog((prev) =>
-      prev.map((j) =>
-        j.id === id ? { ...j, actual: { ...j.actual, notBookedReason: reason } } : j
-      )
-    );
+    async function setLogNotBookedReason(id: string, reason: NotBookedReason) {
+    let updatedEntry: JobLogEntry | null = null;
+
+    setJobLog((prev) => {
+      const next = prev.map((j) => {
+        if (j.id !== id) return j;
+        const updated = {
+          ...j,
+          actual: { ...j.actual, notBookedReason: reason },
+        };
+        updatedEntry = updated;
+        return updated;
+      });
+      saveLogLocal(next);
+      return next;
+    });
+
+    if (!workspaceId || !updatedEntry) return;
+
+    try {
+      const { error } = await supabase
+        .from("job_log_entries")
+        .update({ data: sanitizeJobLogEntryForDb(updatedEntry) })
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+
+      if (error) throw error;
+    } catch (err: any) {
+      setSyncError(err?.message || "Not-booked reason sync failed.");
+      setToast("Reason sync failed");
+      setTimeout(() => setToast(""), 1600);
+    }
+  }
+
+  async function deleteJobLogEntry(id: string) {
+    const prevSnapshot = jobLog;
+
+    setJobLog((prev) => {
+      const next = prev.filter((x) => x.id !== id);
+      saveLogLocal(next);
+      return next;
+    });
+
+    if (!workspaceId) return;
+
+    try {
+      const { error } = await supabase
+        .from("job_log_entries")
+        .delete()
+        .eq("id", id)
+        .eq("workspace_id", workspaceId);
+
+      if (error) throw error;
+    } catch (err: any) {
+      setJobLog(prevSnapshot);
+      saveLogLocal(prevSnapshot);
+      setSyncError(err?.message || "Delete sync failed.");
+      setToast("Delete sync failed");
+      setTimeout(() => setToast(""), 1600);
+    }
+  }
+
+  async function clearAllJobLog() {
+    const prevSnapshot = jobLog;
+
+    setJobLog([]);
+    saveLogLocal([]);
+
+    if (!workspaceId) return;
+
+    try {
+      const { error } = await supabase
+        .from("job_log_entries")
+        .delete()
+        .eq("workspace_id", workspaceId);
+
+      if (error) throw error;
+    } catch (err: any) {
+      setJobLog(prevSnapshot);
+      saveLogLocal(prevSnapshot);
+      setSyncError(err?.message || "Clear-all sync failed.");
+      setToast("Clear-all sync failed");
+      setTimeout(() => setToast(""), 1600);
+    }
   }
 
   // Job log filtering basic
@@ -1327,6 +1691,24 @@ export default function App() {
         {props.label}
         <span className="check">✓</span>
       </button>
+    );
+  }
+
+   if (isHydrating) {
+    return (
+      <div className="app">
+        <div className="bg" />
+        <div className="vignette" />
+        <div className="bokeh" />
+        <div className="wrap" style={{ paddingTop: 24 }}>
+          <section className="card">
+            <div className="cardTitle">
+              <h2>Loading workspace…</h2>
+              <div className="muted">Syncing shared settings and job log</div>
+            </div>
+          </section>
+        </div>
+      </div>
     );
   }
 
@@ -1703,7 +2085,7 @@ export default function App() {
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
               <input className="input" value={logQuery} onChange={(e) => setLogQuery(e.target.value)} placeholder="Search customer / vehicle / package / notes..." />
-              <button className="btn danger" onClick={() => setJobLog([])}>Clear All</button>
+              <button className="btn danger" onClick={clearAllJobLog}>Clear All</button>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1775,7 +2157,7 @@ export default function App() {
                       <div className="logBottomRight">
                         <button className="btn btnSm" onClick={() => loadFromJob(j)}>Load</button>
                         <button className="btn btnSm" onClick={() => copyText(JSON.stringify(j, null, 2))}>Copy</button>
-                        <button className="btn btnSm danger" onClick={() => setJobLog((p) => p.filter((x) => x.id !== j.id))}>Delete</button>
+                        <button className="btn btnSm danger" onClick={() => deleteJobLogEntry(j.id)}>Delete</button>
 
                         <button className={`btn btnSm ${j.actual.status === "Pending" ? "on" : ""}`} onClick={() => setLogStatus(j.id, "Pending")}>Estimated</button>
                         <button className={`btn btnSm ${j.actual.status === "Booked" ? "on good" : ""}`} onClick={() => setLogStatus(j.id, "Booked")}>Booked</button>
